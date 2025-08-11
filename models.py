@@ -16,3 +16,22 @@ class PriceAlert(Base):
     target_price = Column(Float, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     notified = Column(Boolean, default=False)
+    product = relationship('Product')
+    user = relationship('User', back_populates='price_alerts')
+
+
+class Product(Base):
+    __tablename__ = 'product'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)
+    price = Column(Float, nullable=False)
+    image = Column(String(200))
+
+
+class User(Base):
+    __tablename__ = 'user'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(120), nullable=False)
+    email = Column(String(120), unique=True, nullable=False)
+
+    price_alerts = relationship('PriceAlert', back_populates='user')
