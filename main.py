@@ -1,8 +1,10 @@
 import os
 import smtplib
+import time
 from datetime import datetime
 from email.message import EmailMessage
 
+import requests
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from models import PriceAlert, Product
@@ -26,6 +28,24 @@ engine = create_engine(RENDER_DATABASE_URL)
 Session = sessionmaker(bind=engine)
 session = Session()
 
+def wait_for_url(url, timeout=10, wait_seconds=4*60, max_attempts=30):
+    """Poll a URL until status 200 or max attempts reached. Returns True/False."""
+    for attempt in range(max_attempts):
+        try:
+            response = requests.get(url, timeout=timeout)
+            if response.status_code == 200:
+                return True
+            else:
+                logging.info(f"[Wait] Got {response.status_code} from {url}, retrying in {wait_seconds//60} mins...")
+        except requests.RequestException as e:
+            logging.info(f"[Wait] Request failed for {url}: {e}, retrying in {wait_seconds//60} mins...")
+
+        time.sleep(wait_seconds)
+
+    logging.warning(f"[Wait] Max attempts reached for {url}. Giving up.")
+    return False
+
+
 def send_email(user_email, price_alert):
     try:
         if not price_alert.product:
@@ -36,6 +56,13 @@ def send_email(user_email, price_alert):
         target_price = price_alert.target_price
         product_price = price_alert.product.price
         product_image_url = f"https://chocolate-website-95b5.onrender.com/static/{price_alert.product.image or 'default.jpg'}"
+        if not wait_for_url(product_image_url):
+            logging.warning(f"Image URL not available: {product_image_url}")
+            # Optionally continue with sending email without image or return False
+            # return False
+
+        # rest of your email sending code...
+
 
         subject = f"Price Alert: {product_name} reached your target price"
 
