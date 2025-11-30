@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 Base = declarative_base()
 
+
 class PriceAlert(Base):
     __tablename__ = 'price_alert'  # add if not already there
 
@@ -21,11 +22,51 @@ class PriceAlert(Base):
 
 
 class Product(Base):
-    __tablename__ = 'product'
+    __tablename__ = "product"
+
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    price = Column(Float, nullable=False)
+    name = Column(String)
     image = Column(String(200))
+
+    # Only keep relationship needed for lowest_price_box()
+    boxes = relationship('Box', back_populates='product')
+
+    def lowest_price_box(self):
+        arrived_and_active = [
+            b for b in self.boxes
+            if b.shipment.has_arrived and b.is_active
+        ]
+
+        if not arrived_and_active:
+            return None
+
+        return min(arrived_and_active, key=lambda b: b.price_inr_unit)
+
+
+class Box(Base):
+    __tablename__ = "box"
+
+    id = Column(Integer, primary_key=True)
+
+    product_id = Column(Integer, ForeignKey('product.id'))
+    product = relationship('Product', back_populates='boxes')
+
+    shipment_id = Column(Integer, ForeignKey('shipment.id'))
+    shipment = relationship('Shipment', back_populates='boxes')
+
+    # Fields lowest_price_box relies on:
+    price_inr_unit = Column(Float)
+    is_active = Column(Boolean, default=True)
+
+
+class Shipment(Base):
+    __tablename__ = "shipment"
+
+    id = Column(Integer, primary_key=True)
+
+    has_arrived = Column(Boolean, default=False)
+
+    boxes = relationship('Box', back_populates='shipment')
 
 
 class User(Base):
